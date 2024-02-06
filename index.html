@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Editing Software</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: space-between;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #ccc;
+        }
+
+        #text-editor {
+            width: 300px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        #text-area, #selected-text {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        #font-size, #font-color {
+            margin-bottom: 10px;
+        }
+
+        #undo, #redo {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="canvas" width="800" height="600"></canvas>
+    </div>
+
+    <div id="text-editor">
+        <label for="text-area">Add Text:</label>
+        <textarea id="text-area"></textarea>
+
+        <label for="font-size">Font Size:</label>
+        <input type="number" id="font-size" value="16">
+
+        <label for="font-color">Font Color:</label>
+        <input type="color" id="font-color" value="#000000">
+
+        <button onclick="addText()">Add Text</button>
+
+        <label for="selected-text">Selected Text:</label>
+        <textarea id="selected-text" readonly></textarea>
+
+        <button onclick="changeFont()">Change Font</button>
+        
+        <button onclick="undo()" id="undo">Undo</button>
+        <button onclick="redo()" id="redo">Redo</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const history = [];
+        let currentStep = -1;
+        let selectedTextIndex = -1;
+
+        function addText() {
+            const text = document.getElementById('text-area').value;
+            const fontSize = document.getElementById('font-size').value;
+            const fontColor = document.getElementById('font-color').value;
+
+            ctx.font = `${fontSize}px Arial`;
+            ctx.fillStyle = fontColor;
+
+            const mouseX = event.clientX - canvas.getBoundingClientRect().left;
+            const mouseY = event.clientY - canvas.getBoundingClientRect().top;
+
+            ctx.fillText(text, mouseX, mouseY);
+
+            saveState();
+        }
+
+        function saveState() {
+            currentStep++;
+            if (currentStep < history.length) {
+                history.length = currentStep;
+            }
+
+            const canvasCopy = document.createElement('canvas');
+            canvasCopy.width = canvas.width;
+            canvasCopy.height = canvas.height;
+            canvasCopy.getContext('2d').drawImage(canvas, 0, 0);
+            history.push(canvasCopy);
+        }
+
+        function undo() {
+            if (currentStep > 0) {
+                currentStep--;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(history[currentStep], 0, 0);
+                clearSelectedText();
+            }
+        }
+
+        function redo() {
+            if (currentStep < history.length - 1) {
+                currentStep++;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(history[currentStep], 0, 0);
+                clearSelectedText();
+            }
+        }
+
+        function clearSelectedText() {
+            document.getElementById('selected-text').value = '';
+            selectedTextIndex = -1;
+        }
+
+        function changeFont() {
+            const selectedText = document.getElementById('selected-text').value;
+            const fontSize = document.getElementById('font-size').value;
+            const fontColor = document.getElementById('font-color').value;
+
+            if (selectedTextIndex !== -1) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(history[currentStep], 0, 0);
+
+                const selectedTextY = 50 + selectedTextIndex * 30;
+                ctx.font = `${fontSize}px Arial`;
+                ctx.fillStyle = fontColor;
+                ctx.fillText(selectedText, 50, selectedTextY);
+
+                saveState();
+            }
+        }
+
+        canvas.addEventListener('mousedown', (event) => {
+            const mouseX = event.clientX - canvas.getBoundingClientRect().left;
+            const mouseY = event.clientY - canvas.getBoundingClientRect().top;
+
+            if (mouseX >= 0 && mouseX <= canvas.width && mouseY >= 0 && mouseY <= canvas.height) {
+                const imageData = ctx.getImageData(mouseX, mouseY, 1, 1);
+                const alpha = imageData.data[3];
+
+                if (alpha === 0) {
+                    // Clicked on an empty area of the canvas
+                    const text = prompt("Enter text:");
+                    if (text) {
+                        const fontSize = document.getElementById('font-size').value;
+                        const fontColor = document.getElementById('font-color').value;
+
+                        ctx.font = `${fontSize}px Arial`;
+                        ctx.fillStyle = fontColor;
+                        ctx.fillText(text, mouseX, mouseY);
+
+                        saveState();
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
